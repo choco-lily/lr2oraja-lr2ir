@@ -20,7 +20,7 @@ import bms.model.Mode;
 public class LR2IRConnectionCustom implements IRConnection {
 
     public static final String NAME = "BMS-IR";
-    public static final String HOME = "http://www.dream-pro.info/~lavalse/LR2IR/";
+    public static final String HOME = "http://www.bms-ir.org/~lavalse/LR2IR/";
     public static final String VERSION = "1.2.8";
 
     private IRAccount account;
@@ -33,7 +33,7 @@ public class LR2IRConnectionCustom implements IRConnection {
         try {
             // Call getplayerxml.cgi to verify the ID and fetch the player's nickname
             String param = "id=" + account.id + "&lastupdate=0";
-            URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/getplayerxml.cgi");
+            URL url = new URL("http://www.bms-ir.org/~lavalse/LR2IR/2/getplayerxml.cgi");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -212,7 +212,7 @@ public class LR2IRConnectionCustom implements IRConnection {
 
             try {
                 // Fetch player's current stats for this song from LR2IR
-                URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/getplayerxml.cgi");
+                URL url = new URL("http://www.bms-ir.org/~lavalse/LR2IR/2/getplayerxml.cgi");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -322,7 +322,7 @@ public class LR2IRConnectionCustom implements IRConnection {
 
             System.out.println("[BMS-IR] Parameters prepared. Submitting to score.cgi...");
 
-            URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/score.cgi");
+            URL url = new URL("http://www.bms-ir.org/~lavalse/LR2IR/2/score.cgi");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -373,7 +373,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             
             try {
                 String param = "id=" + irpd.id + "&lastupdate=0";
-                URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/getplayerxml.cgi");
+                URL url = new URL("http://www.bms-ir.org/~lavalse/LR2IR/2/getplayerxml.cgi");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -516,7 +516,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 + "&lastupdate=";
 
             System.out.println("[BMS-IR] Sending request to getrankingxml.cgi...");
-            URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/getrankingxml.cgi");
+            URL url = new URL("http://www.bms-ir.org/~lavalse/LR2IR/2/getrankingxml.cgi");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
@@ -667,7 +667,7 @@ public class LR2IRConnectionCustom implements IRConnection {
     @Override
     public String getSongURL(IRChartData chart) {
         if (chart.md5 != null) {
-            return "http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5=" + chart.md5.toLowerCase();
+            return "http://www.bms-ir.org/~lavalse/LR2IR/search.cgi?mode=ranking&bmsmd5=" + chart.md5.toLowerCase();
         }
         return null;
     }
@@ -680,7 +680,7 @@ public class LR2IRConnectionCustom implements IRConnection {
     @Override
     public String getPlayerURL(IRPlayerData irpd) {
         if (irpd.id != null) {
-            return "http://www.dream-pro.info/~lavalse/LR2IR/search.cgi?mode=player&playerid=" + irpd.id;
+            return "http://www.bms-ir.org/~lavalse/LR2IR/search.cgi?mode=player&playerid=" + irpd.id;
         }
         return null;
     }
