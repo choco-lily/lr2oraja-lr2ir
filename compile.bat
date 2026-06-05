@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set "JAVA_HOME=C:\Program Files\Java\jdk-25.0.2"
+set "JAVA_HOME=C:\Program Files\Java\jdk-17"
 set "JAVAC=%JAVA_HOME%\bin\javac.exe"
 set "JAR=%JAVA_HOME%\bin\jar.exe"
 set "DEPENDENCY_JAR=..\lr2oraja(lr2oraja 구동기).jar"
