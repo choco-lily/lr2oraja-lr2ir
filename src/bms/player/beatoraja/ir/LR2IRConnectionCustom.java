@@ -207,8 +207,8 @@ public class LR2IRConnectionCustom implements IRConnection {
             String songmd5 = chart.md5 != null ? chart.md5.toLowerCase() : "";
             String passmd5 = md5(account.password);
 
-            int playcount = 1;
-            int clearcount = (lr2Clear >= 2 ? 1 : 0);
+            int playcount = score.playcount;
+            int clearcount = score.clearcount;
 
             try {
                 // Fetch player's current stats for this song from LR2IR
@@ -263,15 +263,14 @@ public class LR2IRConnectionCustom implements IRConnection {
                                 }
                                 if (hash != null && hash.equalsIgnoreCase(songmd5)) {
                                     int remotePlaycount = Integer.parseInt(getTagValue("playcount", eElement));
-                                    playcount = remotePlaycount + 1;
-                                    
                                     int remoteClearcount = 0;
                                     NodeList ccList = eElement.getElementsByTagName("clearcount");
                                     if (ccList != null && ccList.getLength() > 0) {
                                         remoteClearcount = Integer.parseInt(ccList.item(0).getTextContent());
                                     }
-                                    clearcount = remoteClearcount + (lr2Clear >= 2 ? 1 : 0);
-                                    System.out.println("[BMS-IR] Found remote score for " + songmd5 + ". Remote Playcount: " + remotePlaycount + ", Remote Clearcount: " + remoteClearcount);
+                                    playcount = Math.max(remotePlaycount + 1, score.playcount);
+                                    clearcount = Math.max(remoteClearcount + (lr2Clear >= 2 ? 1 : 0), score.clearcount);
+                                    System.out.println("[BMS-IR] Found remote score for " + songmd5 + ". Remote Playcount: " + remotePlaycount + ", Remote Clearcount: " + remoteClearcount + ". Final playcount: " + playcount + ", clearcount: " + clearcount);
                                     break;
                                 }
                             }
