@@ -207,6 +207,81 @@ public class LR2IRConnectionCustom implements IRConnection {
             String songmd5 = chart.md5 != null ? chart.md5.toLowerCase() : "";
             String passmd5 = md5(account.password);
 
+            int playcount = 1;
+            int clearcount = (lr2Clear >= 2 ? 1 : 0);
+
+            try {
+                // Fetch player's current stats for this song from LR2IR
+                URL url = new URL("http://www.dream-pro.info/~lavalse/LR2IR/2/getplayerxml.cgi");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("Connection", "close");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(15000);
+
+                String fetchParam = "id=" + account.id + "&lastupdate=0";
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(fetchParam.getBytes(StandardCharsets.UTF_8));
+                    os.flush();
+                }
+
+                int respCode = conn.getResponseCode();
+                if (respCode == 200) {
+                    StringBuilder response = new StringBuilder();
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "MS932"))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line).append("\n");
+                        }
+                    }
+                    String respStr = response.toString();
+                    int hashIndex = respStr.indexOf('#');
+                    String xmlContent = hashIndex != -1 ? respStr.substring(hashIndex + 1).trim() : respStr.trim();
+                    if (!xmlContent.isEmpty()) {
+                        if (xmlContent.startsWith("<?xml")) {
+                            int endDecl = xmlContent.indexOf("?>");
+                            if (endDecl != -1) {
+                                xmlContent = xmlContent.substring(endDecl + 2).trim();
+                            }
+                        }
+                        String wrappedXml = "<root>" + xmlContent + "</root>";
+                        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                        DocumentBuilder builder = factory.newDocumentBuilder();
+                        Document doc = builder.parse(new org.xml.sax.InputSource(new java.io.StringReader(wrappedXml)));
+                        doc.getDocumentElement().normalize();
+
+                        NodeList nList = doc.getElementsByTagName("score");
+                        for (int temp = 0; temp < nList.getLength(); temp++) {
+                            org.w3c.dom.Node nNode = nList.item(temp);
+                            if (nNode.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                                Element eElement = (Element) nNode;
+                                String hash = getTagValue("hash", eElement);
+                                if (hash == null || hash.equals("0")) {
+                                    hash = getTagValue("songmd5", eElement);
+                                }
+                                if (hash != null && hash.equalsIgnoreCase(songmd5)) {
+                                    int remotePlaycount = Integer.parseInt(getTagValue("playcount", eElement));
+                                    playcount = remotePlaycount + 1;
+                                    
+                                    int remoteClearcount = 0;
+                                    NodeList ccList = eElement.getElementsByTagName("clearcount");
+                                    if (ccList != null && ccList.getLength() > 0) {
+                                        remoteClearcount = Integer.parseInt(ccList.item(0).getTextContent());
+                                    }
+                                    clearcount = remoteClearcount + (lr2Clear >= 2 ? 1 : 0);
+                                    System.out.println("[BMS-IR] Found remote score for " + songmd5 + ". Remote Playcount: " + remotePlaycount + ", Remote Clearcount: " + remoteClearcount);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[BMS-IR] Failed to fetch remote stats: " + e.getMessage());
+            }
+
             // 5. Calculate scorehash
             String scorehashRaw = passmd5 + songmd5 + exscore + lr2Clear;
             String scorehash = md5(scorehashRaw);
@@ -229,8 +304,8 @@ public class LR2IRConnectionCustom implements IRConnection {
                 + "&bd=" + bd
                 + "&pr=" + pr
                 + "&maxcombo=" + score.maxcombo
-                + "&playcount=1"
-                + "&clearcount=" + (lr2Clear >= 2 ? 1 : 0)
+                + "&playcount=" + playcount
+                + "&clearcount=" + clearcount
                 + "&rate=" + rate
                 + "&minbp=" + score.minbp
                 + "&totalnotes=" + chart.notes

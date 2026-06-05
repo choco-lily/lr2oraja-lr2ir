@@ -1,0 +1,29 @@
+name: "release"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  id-token: "write"
+  contents: "write"
+  packages: "write"
+  pull-requests: "read"
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Make Github release with build artifacts
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "${{ github.ref_name }}"
+        prerelease: false
+        files: |
+          BMS-IR.jar
