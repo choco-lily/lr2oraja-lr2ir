@@ -21,7 +21,7 @@ public class LR2IRConnectionCustom implements IRConnection {
 
     public static final String NAME = "BMS-IR";
     public static final String HOME = "http://www.dream-pro.info/~lavalse/LR2IR/";
-    public static final String VERSION = "1.2.7";
+    public static final String VERSION = "1.2.8";
 
     private IRAccount account;
 
@@ -39,8 +39,8 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
             conn.setDoOutput(true);
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(60000);
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(param.getBytes(StandardCharsets.UTF_8));
@@ -254,8 +254,8 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
             conn.setDoOutput(true);
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(60000);
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(param.getBytes(StandardCharsets.UTF_8));
@@ -305,8 +305,8 @@ public class LR2IRConnectionCustom implements IRConnection {
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 conn.setRequestProperty("Connection", "close");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(60000);
 
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(param.getBytes(StandardCharsets.UTF_8));
@@ -448,8 +448,8 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
             conn.setDoOutput(true);
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
+            conn.setConnectTimeout(15000);
+            conn.setReadTimeout(60000);
 
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(param.getBytes(StandardCharsets.UTF_8));
