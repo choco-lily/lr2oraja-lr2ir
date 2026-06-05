@@ -5,31 +5,10 @@ set "JAVA_HOME=C:\Program Files\Java\jdk-25.0.2"
 set "JAVAC=%JAVA_HOME%\bin\javac.exe"
 set "JAR=%JAVA_HOME%\bin\jar.exe"
 
-set "DEPENDENCY_JAR="
+set "DEPENDENCY_JAR=..\lr2oraja-endlessdream-main(lr2oraja 구동기)\dist\lr2oraja-0.8.8-endlessdream-pre0.3.2.jar"
 
-rem 1. Check in game engine's dist directory
-for %%f in ("..\lr2oraja-endlessdream-main(lr2oraja 구동기)\dist\lr2oraja-*.jar") do (
-    set "DEPENDENCY_JAR=%%f"
-)
-
-rem 2. Fallback to lr2oraja(lr2oraja 구동기).jar in parent directory
-if not defined DEPENDENCY_JAR (
-    if exist "..\lr2oraja(lr2oraja 구동기).jar" (
-        set "DEPENDENCY_JAR=..\lr2oraja(lr2oraja 구동기).jar"
-    )
-)
-
-rem 3. Fallback to generic lr2oraja.jar
-if not defined DEPENDENCY_JAR (
-    if exist "..\lr2oraja.jar" (
-        set "DEPENDENCY_JAR=..\lr2oraja.jar"
-    )
-)
-
-if not defined DEPENDENCY_JAR (
-    echo [Build] Error: Could not find dependency jar.
-    exit /b 1
-)
+if not exist "%DEPENDENCY_JAR%" set "DEPENDENCY_JAR=..\lr2oraja(lr2oraja 구동기).jar"
+if not exist "%DEPENDENCY_JAR%" set "DEPENDENCY_JAR=..\lr2oraja.jar"
 
 echo [Build] Using dependency jar: %DEPENDENCY_JAR%
 
