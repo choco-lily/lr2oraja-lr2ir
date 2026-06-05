@@ -147,32 +147,44 @@ def upload_release(owner, repo, tag, file_path):
     print(f"[Release] Checking release for tag {tag} in {owner}/{repo}...")
     status, body = make_request(url, "GET", headers)
 
-    release = None
     if status == 200:
         release = json.loads(body)
-        print(f"[Release] Found existing release ID: {release['id']}")
-    elif status == 404:
-        print(f"[Release] Release not found for tag {tag}. Creating a new release...")
-        # Create release
-        create_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
-        payload = json.dumps({
-            "tag_name": tag,
-            "name": tag,
-            "body": f"Release {tag}",
-            "draft": False,
-            "prerelease": False
-        }).encode('utf-8')
-        create_headers = headers.copy()
-        create_headers["Content-Type"] = "application/json"
-        status, body = make_request(create_url, "POST", create_headers, payload)
-        if status in (200, 201):
-            release = json.loads(body)
-            print(f"[Release] Created release ID: {release['id']}")
+        print(f"[Release] Found existing release ID: {release['id']}. Deleting it to update the release date and commit tag...")
+        
+        # Delete release
+        del_url = f"https://api.github.com/repos/{owner}/{repo}/releases/{release['id']}"
+        del_status, _ = make_request(del_url, "DELETE", headers)
+        if del_status in (200, 204):
+            print("[Release] Deleted existing release successfully.")
         else:
-            print(f"[Release] Failed to create release: {status} - {body.decode('utf-8')}")
-            sys.exit(1)
+            print(f"[Release] Warning: Failed to delete release: {del_status}")
+
+        # Delete remote tag ref
+        del_tag_url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/tags/{tag}"
+        del_tag_status, _ = make_request(del_tag_url, "DELETE", headers)
+        if del_tag_status in (200, 204):
+            print(f"[Release] Deleted remote tag ref {tag} successfully.")
+        else:
+            print(f"[Release] Warning: Failed to delete remote tag ref: {del_tag_status}")
+
+    # Recreate the release (this will automatically create a new tag pointing to the latest commit)
+    print(f"[Release] Creating a new release for tag {tag}...")
+    create_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
+    payload = json.dumps({
+        "tag_name": tag,
+        "name": tag,
+        "body": f"Release {tag}",
+        "draft": False,
+        "prerelease": False
+    }).encode('utf-8')
+    create_headers = headers.copy()
+    create_headers["Content-Type"] = "application/json"
+    status, body = make_request(create_url, "POST", create_headers, payload)
+    if status in (200, 201):
+        release = json.loads(body)
+        print(f"[Release] Created release ID: {release['id']}")
     else:
-        print(f"[Release] Error checking release: {status} - {body.decode('utf-8')}")
+        print(f"[Release] Failed to create release: {status} - {body.decode('utf-8')}")
         sys.exit(1)
 
     file_name = os.path.basename(file_path)
