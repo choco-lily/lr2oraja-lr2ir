@@ -21,7 +21,7 @@ public class LR2IRConnectionCustom implements IRConnection {
 
     public static final String NAME = "BMS-IR";
     public static final String HOME = "http://www.dream-pro.info/~lavalse/LR2IR/";
-    public static final String VERSION = "1.2.5";
+    public static final String VERSION = "1.2.7";
 
     private IRAccount account;
 
@@ -115,6 +115,15 @@ public class LR2IRConnectionCustom implements IRConnection {
         }
 
         try {
+            // Check seed compatibility with LR2 seed range (0-32766)
+            long seedVal = score.seed;
+            long p1Seed = seedVal % 16777216;
+            long p2Seed = seedVal / 16777216;
+            if (p1Seed < 0 || p1Seed > 32766 || p2Seed < 0 || p2Seed > 32766) {
+                System.err.println("[BMS-IR] Submission blocked: Random seed is out of LR2 range (0-32766). P1: " + p1Seed + ", P2: " + p2Seed + ". Please use the modified lr2oraja client.");
+                return createResponse(false, "Submission blocked: Seed is out of LR2 range. Please use the modified lr2oraja client.", null);
+            }
+
             // 1. Map Clear Type
             int lr2Clear = 0; // NO PLAY
             if (score.clear != null) {
@@ -378,7 +387,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                             case 3: beatorajaClear = 5; break; // Normal
                             case 4: beatorajaClear = 6; break; // Hard
                             case 5:
-                                if (pg + gr == notes && notes > 0) {
+                                if (pg + gr == notes && notes > 0 && minbp == 0) {
                                     beatorajaClear = 9; // Perfect Clear
                                 } else {
                                     beatorajaClear = 8; // FullCombo
@@ -522,7 +531,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                         case 3: beatorajaClear = 5; break; // Normal
                         case 4: beatorajaClear = 6; break; // Hard
                         case 5:
-                            if (pg + gr == notes && notes > 0) {
+                            if (pg + gr == notes && notes > 0 && minbp == 0) {
                                 beatorajaClear = 9; // Perfect Clear
                             } else {
                                 beatorajaClear = 8; // FullCombo
