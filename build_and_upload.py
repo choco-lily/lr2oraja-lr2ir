@@ -21,7 +21,7 @@ def get_github_token():
         for line in proc.stdout.splitlines():
             if line.startswith("password="):
                 val = line.split("=", 1)[1].strip()
-                if val and not val.startswith("github_pat"):
+                if val and "dummy" not in val.lower():
                     return val
     except Exception as e:
         print(f"Note: Git Credential Manager query failed: {e}")
@@ -29,7 +29,7 @@ def get_github_token():
     # 2. Fall back to environment variables (excluding mock/agent tokens)
     for env_var in ["GH_TOKEN", "GITHUB_TOKEN"]:
         token = os.environ.get(env_var)
-        if token and not token.startswith("github_pat"):
+        if token and "dummy" not in token.lower():
             return token
             
     return None

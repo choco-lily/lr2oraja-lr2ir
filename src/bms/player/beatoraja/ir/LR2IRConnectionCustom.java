@@ -16,6 +16,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import bms.player.beatoraja.ClearType;
 import bms.model.Mode;
+import bms.player.beatoraja.pattern.LR2Random;
 
 public class LR2IRConnectionCustom implements IRConnection {
 
@@ -38,6 +39,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
+            conn.setRequestProperty("User-Agent", "LR2");
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -95,6 +97,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             }
 
             System.out.println("[BMS-IR] Logged in successfully as player: " + playerName);
+            schedulePopn9kCachePrewarm();
             IRPlayerData data = new IRPlayerData(account.id, playerName, "");
             return createResponse(true, "Authenticated successfully as " + playerName, data);
 
@@ -115,8 +118,18 @@ public class LR2IRConnectionCustom implements IRConnection {
         }
 
         try {
-            // Check seed compatibility with LR2 seed range (0-32766)
+            // Map random option to compatible seed if RANDOM/ROTATE is used
             long seedVal = score.seed;
+            bms.player.beatoraja.pattern.Random resolvedRandom = normalizeLR2Random(bms.player.beatoraja.pattern.Random.getRandom((int)(score.option % 10), chart.mode));
+            if (resolvedRandom == bms.player.beatoraja.pattern.Random.RANDOM || resolvedRandom == bms.player.beatoraja.pattern.Random.ROTATE) {
+                long resolvedSeed = resolveUploadSeed(chart.mode, score.option, score.seed);
+                System.out.println("[BMS-IR] Resolved RANDOM/ROTATE play seed from beatoraja " + score.seed + " to LR2 seed: " + resolvedSeed);
+                seedVal = resolvedSeed;
+            } else if (resolvedRandom == bms.player.beatoraja.pattern.Random.S_RANDOM) {
+                seedVal = 0L;
+            }
+
+            // Check seed compatibility with LR2 seed range (0-32766)
             long p1Seed = seedVal % 16777216;
             long p2Seed = seedVal / 16777216;
             if (p1Seed < 0 || p1Seed > 32766 || p2Seed < 0 || p2Seed > 32766) {
@@ -217,6 +230,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("User-Agent", "LR2");
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(15000);
@@ -314,7 +328,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 + "&judge=" + (chart.judge >= 0 && chart.judge <= 3 ? chart.judge : 2)
                 + "&inputtype=0"
                 + "&ghost=" + URLEncoder.encode(encodePlayGhost(score.decodeGhost()), StandardCharsets.UTF_8)
-                + "&rseed=" + (int)score.seed
+                + "&rseed=" + (int)seedVal
                 + "&clear_db=0"
                 + "&clear_ex=0"
                 + "&clear_sd=0"
@@ -327,6 +341,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
+            conn.setRequestProperty("User-Agent", "LR2");
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -378,6 +393,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 conn.setRequestProperty("Connection", "close");
+                conn.setRequestProperty("User-Agent", "LR2");
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(60000);
@@ -461,7 +477,9 @@ public class LR2IRConnectionCustom implements IRConnection {
                             case 3: beatorajaClear = 5; break; // Normal
                             case 4: beatorajaClear = 6; break; // Hard
                             case 5:
-                                if (pg + gr == notes && notes > 0 && minbp == 0) {
+                                if (pg == notes && notes > 0) {
+                                    beatorajaClear = 10; // Max Clear (All PG)
+                                } else if (pg + gr == notes && notes > 0 && minbp == 0) {
                                     beatorajaClear = 9; // Perfect Clear
                                 } else {
                                     beatorajaClear = 8; // FullCombo
@@ -521,6 +539,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
+            conn.setRequestProperty("User-Agent", "LR2");
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -605,7 +624,9 @@ public class LR2IRConnectionCustom implements IRConnection {
                         case 3: beatorajaClear = 5; break; // Normal
                         case 4: beatorajaClear = 6; break; // Hard
                         case 5:
-                            if (pg + gr == notes && notes > 0 && minbp == 0) {
+                            if (pg == notes && notes > 0) {
+                                beatorajaClear = 10; // Max Clear (All PG)
+                            } else if (pg + gr == notes && notes > 0 && minbp == 0) {
                                 beatorajaClear = 9; // Perfect Clear
                             } else {
                                 beatorajaClear = 8; // FullCombo
@@ -656,7 +677,303 @@ public class LR2IRConnectionCustom implements IRConnection {
 
     @Override
     public IRResponse<IRPlayerData[]> getRivals() {
-        return createResponse(true, "Rivals list not supported.", new IRPlayerData[0]);
+        if (account == null || account.id == null || account.id.isEmpty()) {
+            return createResponse(false, "Not logged in.", new IRPlayerData[0]);
+        }
+        System.out.println("[BMS-IR] Fetching rivals list for player ID: " + account.id);
+        try {
+            URL url = new URL("https://www.bms-ir.org/~lavalse/LR2IR/search.cgi?mode=mypage&playerid=" + account.id);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("User-Agent", "LR2");
+            conn.setRequestProperty("Connection", "close");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                return createResponse(false, "Failed to connect to LR2IR server (code: " + responseCode + ")", new IRPlayerData[0]);
+            }
+
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "MS932"))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line).append("\n");
+                }
+            }
+
+            String html = response.toString();
+            java.util.regex.Pattern rowPattern = java.util.regex.Pattern.compile("<tr><th>\\u30e9\\u30a4\\u30d0\\u30eb</th><td>([\\\\s\\\\S]*?)</td></tr>");
+            java.util.regex.Matcher rowMatcher = rowPattern.matcher(html);
+            java.util.ArrayList<IRPlayerData> rivals = new java.util.ArrayList<>();
+
+            if (rowMatcher.find()) {
+                String cellContent = rowMatcher.group(1);
+                java.util.regex.Pattern entryPattern = java.util.regex.Pattern.compile("<a\\\\s+href=\\\"[^\\\"]*playerid=(\\\\d+)\\\"[^>]*>([^<]+)</a>", java.util.regex.Pattern.CASE_INSENSITIVE);
+                java.util.regex.Matcher entryMatcher = entryPattern.matcher(cellContent);
+                while (entryMatcher.find()) {
+                    String rivalId = entryMatcher.group(1);
+                    String rivalName = entryMatcher.group(2).trim();
+                    System.out.println("[BMS-IR] Found rival: " + rivalName + " (ID: " + rivalId + ")");
+                    rivals.add(new IRPlayerData(rivalId, rivalName, ""));
+                }
+            }
+
+            IRPlayerData[] rivalsArr = rivals.toArray(new IRPlayerData[0]);
+            System.out.println("[BMS-IR] Total rivals loaded: " + rivalsArr.length);
+            return createResponse(true, "Fetched rivals successfully.", rivalsArr);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("[BMS-IR] Error fetching rivals list: " + e.getMessage());
+            return createResponse(false, "Exception occurred: " + e.getMessage(), new IRPlayerData[0]);
+        }
+    }
+
+    private static final java.util.Map<Integer, java.util.Map<String, Integer>> LR2_RANDOM_SEED_BY_LANE_COUNT = buildPrecomputedLR2RandomSeedMaps();
+    private static final java.util.Map<String, Integer> LR2_RANDOM_9KEY_SEED_CACHE = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>());
+    private static volatile boolean LR2_RANDOM_9KEY_PREWARM_STARTED = false;
+
+    private static String encodeLR2LanePattern(int n, int n2) {
+        int n3;
+        int n4;
+        LR2Random lR2Random = new LR2Random(n);
+        int[] nArray = new int[n2 + 1];
+        int[] nArray2 = new int[n2 + 1];
+        for (n4 = 0; n4 <= n2; ++n4) {
+            nArray[n4] = n4;
+        }
+        for (n4 = 1; n4 < n2; ++n4) {
+            n3 = n4 + lR2Random.nextInt(n2 - n4 + 1);
+            int n5 = nArray[n4];
+            nArray[n4] = nArray[n3];
+            nArray[n3] = n5;
+        }
+        for (n4 = 1; n4 <= n2; ++n4) {
+            nArray2[nArray[n4]] = n4;
+        }
+        StringBuilder stringBuilder = new StringBuilder(n2);
+        for (n3 = 1; n3 <= n2; ++n3) {
+            stringBuilder.append((char)(48 + nArray2[n3]));
+        }
+        return stringBuilder.toString();
+    }
+
+    private void schedulePopn9kCachePrewarm() {
+        synchronized (LR2IRConnectionCustom.class) {
+            if (LR2_RANDOM_9KEY_PREWARM_STARTED) {
+                return;
+            }
+            LR2_RANDOM_9KEY_PREWARM_STARTED = true;
+        }
+        Thread thread = new Thread(() -> {
+            int n2 = LR2_RANDOM_9KEY_SEED_CACHE.size();
+            long l = System.currentTimeMillis();
+            try {
+                for (int n = 0; n < 1000000; ++n) {
+                    String string = LR2IRConnectionCustom.encodeLR2LanePattern(n, 9);
+                    LR2_RANDOM_9KEY_SEED_CACHE.putIfAbsent(string, n);
+                }
+            } catch (Throwable throwable) {
+                // empty catch block
+            }
+            int n = LR2_RANDOM_9KEY_SEED_CACHE.size();
+            long l2 = System.currentTimeMillis() - l;
+            System.out.println("[BMS-IR] popn9k-prewarm-done: iterations=1000000 cachedBefore=" + n2 + " cachedAfter=" + n + " elapsedMs=" + l2);
+        }, "BmsIRPopn9KeyPrewarm");
+        thread.setDaemon(true);
+        try {
+            thread.setPriority(1);
+        } catch (Exception exception) {
+            // empty catch block
+        }
+        try {
+            thread.start();
+        } catch (Throwable throwable) {
+            synchronized (LR2IRConnectionCustom.class) {
+                LR2_RANDOM_9KEY_PREWARM_STARTED = false;
+            }
+        }
+    }
+
+    private long resolveUploadSeed(Mode mode, int n, long l) {
+        if (mode == null || n < 0) {
+            return 0L;
+        }
+        bms.player.beatoraja.pattern.Random random = this.normalizeLR2Random(bms.player.beatoraja.pattern.Random.getRandom((int)(n % 10), (Mode)mode));
+        if (random == null) {
+            return 0L;
+        }
+        switch (random) {
+            case RANDOM: 
+            case ROTATE: {
+                String string = this.resolveComparableLanePattern(mode, n, l);
+                if (string == null) {
+                    return 0L;
+                }
+                Integer n2 = this.resolveComparableLR2Seed(mode, string);
+                return n2 != null ? (long)n2.intValue() : 0L;
+            }
+        }
+        return 0L;
+    }
+
+    private Integer resolveComparableLR2Seed(Mode mode, String string) {
+        int n = this.resolveComparableLaneCount(mode);
+        if (n <= 1 || string == null || string.isEmpty()) {
+            return null;
+        }
+        java.util.Map<String, Integer> map = LR2_RANDOM_SEED_BY_LANE_COUNT.get(n);
+        if (map != null) {
+            return map.get(string);
+        }
+        if (n != 9) {
+            return null;
+        }
+        Integer n2 = LR2_RANDOM_9KEY_SEED_CACHE.get(string);
+        if (n2 != null) {
+            return n2;
+        }
+        Integer n3 = LR2IRConnectionCustom.findLR2RandomSeedByLanePattern(n, string, 6000000);
+        if (n3 != null) {
+            LR2_RANDOM_9KEY_SEED_CACHE.putIfAbsent(string, n3);
+        }
+        return n3;
+    }
+
+    private String resolveComparableLanePattern(Mode mode, int n, long l) {
+        int n2 = this.resolveComparableLaneCount(mode);
+        if (n2 <= 1) {
+            return null;
+        }
+        bms.player.beatoraja.pattern.Random random = this.normalizeLR2Random(bms.player.beatoraja.pattern.Random.getRandom((int)(n % 10), (Mode)mode));
+        if (random == null) {
+            return null;
+        }
+        switch (random) {
+            case RANDOM: {
+                return this.encodeComparableRandomLanePattern(l, n2);
+            }
+            case ROTATE: {
+                return this.encodeComparableRotateLanePattern(l, n2);
+            }
+        }
+        return null;
+    }
+
+    private int resolveComparableLaneCount(Mode mode) {
+        if (mode == null || mode.player <= 0) {
+            return 0;
+        }
+        int n = mode.key / mode.player;
+        if (n <= 0) {
+            return 0;
+        }
+        return this.hasScratchLane(mode) ? n - 1 : n;
+    }
+
+    private boolean hasScratchLane(Mode mode) {
+        return mode != null && mode.scratchKey != null && mode.scratchKey.length > 0;
+    }
+
+    private String encodeComparableRandomLanePattern(long l, int n) {
+        java.util.Random random = new java.util.Random(l);
+        java.util.ArrayList<Integer> arrayList = new java.util.ArrayList<Integer>(n);
+        for (int i = 0; i < n; ++i) {
+            arrayList.add(i);
+        }
+        int[] nArray = new int[n];
+        for (int i = 0; i < n; ++i) {
+            int n2 = random.nextInt(arrayList.size());
+            nArray[i] = (Integer)arrayList.remove(n2);
+        }
+        return this.encodeComparableLanePattern(nArray);
+    }
+
+    private String encodeComparableRotateLanePattern(long l, int n) {
+        if (n <= 1) {
+            return null;
+        }
+        java.util.Random random = new java.util.Random(l);
+        boolean bl = random.nextInt(2) == 1;
+        int n2 = random.nextInt(n - 1) + (bl ? 1 : 0);
+        int[] nArray = new int[n];
+        int n3 = n2;
+        for (int i = 0; i < n; ++i) {
+            nArray[i] = n3;
+            n3 = bl ? (n3 + 1) % n : (n3 + n - 1) % n;
+        }
+        return this.encodeComparableLanePattern(nArray);
+    }
+
+    private String encodeComparableLanePattern(int[] nArray) {
+        if (nArray == null || nArray.length == 0) {
+            return "";
+        }
+        StringBuilder stringBuilder = new StringBuilder(nArray.length);
+        for (int n : nArray) {
+            stringBuilder.append((char)(48 + n + 1));
+        }
+        return stringBuilder.toString();
+    }
+
+    private static java.util.Map<Integer, java.util.Map<String, Integer>> buildPrecomputedLR2RandomSeedMaps() {
+        java.util.Map<Integer, java.util.Map<String, Integer>> map = new java.util.LinkedHashMap<>();
+        map.put(5, LR2IRConnectionCustom.buildLR2RandomSeedByLanePattern(5, 10000));
+        map.put(7, LR2IRConnectionCustom.buildLR2RandomSeedByLanePattern(7, 60000));
+        return map;
+    }
+
+    private static java.util.Map<String, Integer> buildLR2RandomSeedByLanePattern(int n, int n2) {
+        int n3 = 1;
+        for (int i = 2; i <= n; ++i) {
+            n3 *= i;
+        }
+        java.util.Map<String, Integer> map = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < n2 && map.size() < n3; ++i) {
+            map.putIfAbsent(LR2IRConnectionCustom.encodeLR2LanePattern(i, n), i);
+        }
+        return map;
+    }
+
+    private static Integer findLR2RandomSeedByLanePattern(int n, String string, int n2) {
+        for (int i = 0; i < n2; ++i) {
+            if (!LR2IRConnectionCustom.encodeLR2LanePattern(i, n).equals(string)) continue;
+            return i;
+        }
+        return null;
+    }
+
+    private bms.player.beatoraja.pattern.Random normalizeLR2Random(bms.player.beatoraja.pattern.Random random) {
+        if (random == null) {
+            return null;
+        }
+        switch (random) {
+            case IDENTITY: 
+            case MIRROR: 
+            case RANDOM: 
+            case ROTATE: 
+            case S_RANDOM: {
+                return random;
+            }
+            case MIRROR_EX: {
+                return bms.player.beatoraja.pattern.Random.MIRROR;
+            }
+            case RANDOM_EX: 
+            case RANDOM_PLAYABLE: {
+                return bms.player.beatoraja.pattern.Random.RANDOM;
+            }
+            case ROTATE_EX: {
+                return bms.player.beatoraja.pattern.Random.ROTATE;
+            }
+            case S_RANDOM_EX: 
+            case S_RANDOM_PLAYABLE: 
+            case S_RANDOM_NO_THRESHOLD: {
+                return bms.player.beatoraja.pattern.Random.S_RANDOM;
+            }
+        }
+        return null;
     }
 
     @Override
