@@ -8,9 +8,24 @@
 
 공식 LR2IR 서비스가 종료된 이후, 부활한 **BMS-IR** 랭킹 서비스에서 `lr2oraja` / `beatoraja` 플레이어의 점수를 연동 및 전송할 수 있도록 돕는 커스텀 IR 연결 플러그인입니다.
 
-### 🚀 최신 업데이트 내용 (v1.2.8)
+### 🚀 최신 업데이트 내용 (v1.2.9)
 
-최신 버전에서는 공식 플러그인(`bms_ir_0.0.19.jar`)의 핵심 기능들을 이식하면서, 서버 측의 클라이언트 제한을 우회하기 위한 **LR2 위장(Spoofing)** 기능과 편의성이 대폭 강화되었습니다.
+최신 버전에서는 공식 플러그인(`bms_ir_ed_0.0.21.jar`)의 새로운 점수 파라미터(`clear_type`, `gauge_type`, `gauge_option`)를 온전히 지원하며, 플레이어가 직접 전송 식별 모드를 구성할 수 있도록 지원합니다.
+
+1. **식별 모드 설정 파일 (`bmsir-spoof.txt`) 지원**
+   - 플러그인이 로드되면 같은 폴더에 자동으로 `bmsir-spoof.txt` 설정 파일이 생성됩니다.
+   - 플레이어는 파일 내의 설정을 수정하여 세 가지 모드 중 하나를 선택할 수 있습니다:
+     - **`lr2`**: 이전과 동일하게 순정 LR2 클라이언트로 위장하여 전송합니다. (User-Agent: `LR2`, 상세 해시/식별자 미전송)
+     - **`ed`**: Endless Dream 버전의 lr2oraja로 식별 정보를 전송합니다. (User-Agent: `BmsIRUpload/100130`, 클래스 해시 및 상세 플레이어 상태값 전송)
+     - **`vanilla`**: 순정 lr2oraja / beatoraja 버전으로 식별 정보를 전송합니다. (User-Agent: `BmsIRUpload/100130`, 클래스 해시 및 상세 플레이어 상태값 전송)
+2. **0.0.21 규격 게이지 및 클리어 상태 코드 지원**
+   - 공식 0.0.21 버전에 추가된 플레이 통계 필드인 `clear_type` (beatoraja 내부 클리어 타입 번호), `gauge_type` (인게임 게이지 종류 번호), `gauge_option` (매핑된 LR2 게이지 코드) 파라미터를 BMS-IR 인터넷 랭킹 서버로 함께 전송하여 상세한 기록 정보가 기록 웹사이트 상에 정확하게 반영되도록 개선했습니다.
+
+---
+
+### 🚀 이전 업데이트 내용 (v1.2.8)
+
+공식 플러그인(`bms_ir_0.0.19.jar`)의 핵심 기능들을 이식하면서, 서버 측의 클라이언트 제한을 우회하기 위한 **LR2 위장(Spoofing)** 기능과 편의성이 대폭 강화되었습니다.
 
 1. **순정 구동기 랜덤(RANDOM) 완벽 지원 (LR2 호환 난수 시드 자동 분석)**
    - 순정 구동기(시드 범위 `0 ~ 16777215`)에서 RANDOM 또는 ROTATE 옵션으로 플레이 시, 플러그인 내부에서 자동으로 생성된 라인 배치를 분석하여 그에 대응하는 **LR2 호환 32비트 난수 시드(0 ~ 32766)**를 찾아 매핑해 줍니다.
@@ -53,9 +68,24 @@
 
 This is a custom IR connection plugin that enables using `lr2oraja` / `beatoraja` with the resurrected **BMS-IR** ranking service after the official LR2IR service was shut down.
 
+### 🚀 What's New in v1.2.9
+
+The latest release introduces support for the new play parameters from the official version `0.0.21` (`clear_type`, `gauge_type`, `gauge_option`) and allows players to customize their client identification spoofing modes.
+
+1. **Configurable Spoofing Mode via `bmsir-spoof.txt`**
+   - On plugin startup, a configuration template `bmsir-spoof.txt` is automatically created in the plugin directory.
+   - Players can edit this file to select one of the following modes:
+     - **`lr2`**: Spoofs as classic LR2. (User-Agent: `LR2`, hides beatoraja details and skips hashing verification parameters)
+     - **`ed`**: Spoofs as Endless Dream lr2oraja. (User-Agent: `BmsIRUpload/100130`, submits class verification hashes and play metadata)
+     - **`vanilla`**: Spoofs as vanilla lr2oraja. (User-Agent: `BmsIRUpload/100130`, submits class verification hashes and play metadata)
+2. **Modern Clear/Gauge Statistics (0.0.21 Specification)**
+   - Submits `clear_type` (beatoraja ClearType ID), `gauge_type` (beatoraja GaugeType ID), and `gauge_option` (mapped LR2 gauge option code) to the BMS-IR server, enabling detailed gauge/clear stats to be rendered on the rankings web portal.
+
+---
+
 ### 🚀 What's New in v1.2.8
 
-The latest release ports features from the official plugin (`bms_ir_0.0.19.jar`) while implementing complete **LR2 Client Spoofing** to bypass server-side client restrictions.
+The v1.2.8 release ports features from the official plugin (`bms_ir_0.0.19.jar`) while implementing complete **LR2 Client Spoofing** to bypass server-side client restrictions.
 
 1. **Unmodified Client RANDOM Support (LR2 Random Seed Resolution)**
    - When playing with RANDOM/ROTATE options on unmodified clients (seed range `0 to 16777215`), the plugin analyzes the generated lane configuration in-memory and resolves it to a matching **LR2-compatible 32-bit seed (0 to 32766)**.
@@ -98,9 +128,24 @@ The latest release ports features from the official plugin (`bms_ir_0.0.19.jar`)
 
 公式の LR2IR サービスが終了した後、復活した **BMS-IR** ランクサービスで `lr2oraja` / `beatoraja` プレイヤーの プレイ記録を連動・送信できるようにするカスタム IR 接続プラグインです。
 
+### 🚀 更新履歴 (v1.2.9)
+
+最新バージョンでは、公式の最新プラグイン（`bms_ir_ed_0.0.21.jar`）の新しいプレイ統計パラメータ（`clear_type`, `gauge_type`, `gauge_option`）をサポートし、プレイヤー自身で送信識別モードを設定できる機能を追加しました。
+
+1. **識別モード設定ファイル (`bmsir-spoof.txt`) の導入**
+   - プラグインの起動時に、JARファイルと同じディレクトリ内に `bmsir-spoof.txt` 設定ファイルが自動的に生成されます。
+   - プレイヤーは設定ファイルを編集することで、次の3つのモードから接続動作を選択できます：
+     - **`lr2`**: 従来どおり純正の LR2 クライアントに偽装してスコアを送信します。（User-Agent: `LR2`、詳細な識別子やクラスハッシュは送信されません）
+     - **`ed`**: Endless Dream版 lr2oraja として接続を識別させます。（User-Agent: `BmsIRUpload/100130`、クラスハッシュやメタデータを送信）
+     - **`vanilla`**: 純正 lr2oraja として接続を識別させます。（User-Agent: `BmsIRUpload/100130`、クラスハッシュやメタデータを送信）
+2. **0.0.21 仕様のクリア・ゲージ統計コード送信対応**
+   - 新規パラメータ `clear_type`（beatoraja内部クリアタイプID）、`gauge_type`（インゲームのゲージ種類ID）、`gauge_option`（LR2互換にマッピングされたゲージオプションコード）をBMS-IRサーバーへ送信するように更新され、詳細な統計情報をネットランキング側で正確に反映できるようになりました。
+
+---
+
 ### 🚀 更新履歴 (v1.2.8)
 
-最新バージョンでは、公式プラグイン（`bms_ir_0.0.19.jar`）の主要機能を取り込みつつ、サーバー側のクライアント制限を回避するための **LR2偽装（Client Spoofing）** 機能と利便性が大幅に強化されました。
+以前のバージョンでは、公式プラグイン（`bms_ir_0.0.19.jar`）の主要機能を取り込みつつ、サーバー側のクライアント制限を回避するための **LR2偽装（Client Spoofing）** 機能と利便性が大幅に強化されました。
 
 1. **未改造クライアントでのランダム（RANDOM）完全対応 (LR2互換乱数シード自動変換)**
    - 未改造の標準クライアント（乱数シード範囲 `0 〜 16777215`）で RANDOM または ROTATE オプションを適用してプレイする際、プラグイン内で自動的にレーン配置を逆解析し、対応する **LR2互換の32ビット乱数シード（0 〜 32766）** へ動的にマッピングします。

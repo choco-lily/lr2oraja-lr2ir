@@ -2,6 +2,9 @@ package bms.player.beatoraja.ir;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -22,12 +25,13 @@ public class LR2IRConnectionCustom implements IRConnection {
 
     public static final String NAME = "BMS-IR";
     public static final String HOME = "https://www.bms-ir.org/~lavalse/LR2IR/";
-    public static final String VERSION = "1.2.8";
+    public static final String VERSION = "1.2.9";
 
     private IRAccount account;
 
     @Override
     public IRResponse<IRPlayerData> login(IRAccount account) {
+        ensureSpoofConfigTemplate();
         this.account = account;
         System.out.println("[BMS-IR] Verifying Player ID: " + account.id);
         
@@ -39,7 +43,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
-            conn.setRequestProperty("User-Agent", "LR2");
+            conn.setRequestProperty("User-Agent", getUserAgent());
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -230,7 +234,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 conn.setRequestProperty("Connection", "close");
-                conn.setRequestProperty("User-Agent", "LR2");
+                conn.setRequestProperty("User-Agent", getUserAgent());
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(15000);
@@ -334,6 +338,21 @@ public class LR2IRConnectionCustom implements IRConnection {
                 + "&clear_sd=0"
                 + "&scorehash=" + scorehash;
 
+            param += "&clear_type=" + ((score.clear != null) ? score.clear.id : 0)
+                + "&gauge_type=" + score.gauge
+                + "&gauge_option=" + lr2Gauge;
+
+            String spoofMode = getSpoofMode();
+            if ("ed".equals(spoofMode) || "vanilla".equals(spoofMode)) {
+                param += "&client_kind=lr2oraja"
+                    + "&client_variant=" + spoofMode
+                    + "&client_version=0.0.21"
+                    + "&client_hash=" + md5HexForCodeSource("bms.player.beatoraja.MainController")
+                    + "&client_hash_algorithm=md5"
+                    + "&plugin_hash=" + md5HexForCodeSource("bms.player.beatoraja.ir.LR2IRConnectionCustom")
+                    + "&plugin_hash_algorithm=md5";
+            }
+
             System.out.println("[BMS-IR] Parameters prepared. Submitting to score.cgi...");
 
             URL url = new URL("https://www.bms-ir.org/~lavalse/LR2IR/2/score.cgi");
@@ -341,7 +360,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
-            conn.setRequestProperty("User-Agent", "LR2");
+            conn.setRequestProperty("User-Agent", getUserAgent());
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -393,7 +412,7 @@ public class LR2IRConnectionCustom implements IRConnection {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 conn.setRequestProperty("Connection", "close");
-                conn.setRequestProperty("User-Agent", "LR2");
+                conn.setRequestProperty("User-Agent", getUserAgent());
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(60000);
@@ -539,7 +558,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
             conn.setRequestProperty("Connection", "close");
-            conn.setRequestProperty("User-Agent", "LR2");
+            conn.setRequestProperty("User-Agent", getUserAgent());
             conn.setDoOutput(true);
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(60000);
@@ -685,7 +704,7 @@ public class LR2IRConnectionCustom implements IRConnection {
             URL url = new URL("https://www.bms-ir.org/~lavalse/LR2IR/search.cgi?mode=mypage&playerid=" + account.id);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "LR2");
+            conn.setRequestProperty("User-Agent", getUserAgent());
             conn.setRequestProperty("Connection", "close");
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(15000);
@@ -1043,6 +1062,104 @@ public class LR2IRConnectionCustom implements IRConnection {
             return sb.toString();
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static File getJarDir() {
+        try {
+            java.security.CodeSource codeSource = LR2IRConnectionCustom.class.getProtectionDomain().getCodeSource();
+            if (codeSource != null && codeSource.getLocation() != null) {
+                File jarFile = new File(codeSource.getLocation().toURI());
+                return jarFile.getParentFile();
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        return new File(".");
+    }
+
+    private static void ensureSpoofConfigTemplate() {
+        File dir = getJarDir();
+        File configFile = new File(dir, "bmsir-spoof.txt");
+        if (!configFile.exists()) {
+            try (FileOutputStream fos = new FileOutputStream(configFile)) {
+                String template = "# BMS-IR Client Spoofing Configuration\n"
+                        + "# Choose one of the following modes:\n"
+                        + "# - lr2 : Spoof as classic LR2 (highly compatible, does not submit modern gauge details, hides beatoraja client info)\n"
+                        + "# - ed : Spoof as Endless Dream lr2oraja (User-Agent: BmsIRUpload/100130, submits gauge and variant hashes)\n"
+                        + "# - vanilla : Spoof as vanilla lr2oraja (User-Agent: BmsIRUpload/100130, submits gauge and variant hashes)\n"
+                        + "mode=lr2\n";
+                fos.write(template.getBytes(StandardCharsets.UTF_8));
+                System.out.println("[BMS-IR] Created default configuration file: " + configFile.getAbsolutePath());
+            } catch (Exception e) {
+                System.err.println("[BMS-IR] Failed to create configuration file: " + e.getMessage());
+            }
+        }
+    }
+
+    private static String getSpoofMode() {
+        File dir = getJarDir();
+        File configFile = new File(dir, "bmsir-spoof.txt");
+        if (configFile.exists()) {
+            try (FileInputStream fis = new FileInputStream(configFile);
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.startsWith("#") || line.isEmpty()) {
+                        continue;
+                    }
+                    if (line.startsWith("mode=")) {
+                        String value = line.substring(5).trim().toLowerCase();
+                        if (value.equals("ed") || value.equals("vanilla") || value.equals("lr2")) {
+                            return value;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[BMS-IR] Failed to read configuration file: " + e.getMessage());
+            }
+        }
+        return "lr2"; // Default fallback
+    }
+
+    private static String getUserAgent() {
+        String mode = getSpoofMode();
+        if ("ed".equals(mode) || "vanilla".equals(mode)) {
+            return "BmsIRUpload/100130";
+        }
+        return "LR2";
+    }
+
+    private static String md5HexForCodeSource(String className) {
+        try {
+            Class<?> clazz = Class.forName(className, false, LR2IRConnectionCustom.class.getClassLoader());
+            java.security.CodeSource codeSource = clazz.getProtectionDomain().getCodeSource();
+            if (codeSource == null || codeSource.getLocation() == null) {
+                return "";
+            }
+            java.nio.file.Path path = java.nio.file.Path.of(codeSource.getLocation().toURI());
+            if (!java.nio.file.Files.isRegularFile(path)) {
+                return "";
+            }
+            MessageDigest messageDigest = MessageDigest.getInstance("MD5");
+            try (java.io.InputStream inputStream = java.nio.file.Files.newInputStream(path)) {
+                int n;
+                byte[] byArray = new byte[8192];
+                while ((n = inputStream.read(byArray)) >= 0) {
+                    if (n > 0) {
+                        messageDigest.update(byArray, 0, n);
+                    }
+                }
+            }
+            byte[] digest = messageDigest.digest();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Throwable throwable) {
+            return "";
         }
     }
 
