@@ -169,9 +169,18 @@ public class EungaIRConnection implements IRConnection {
                         bms.player.beatoraja.song.SongData sd = songDatas[0];
                         subtitle = sd.getSubtitle() != null ? sd.getSubtitle() : "";
                         subartist = sd.getSubartist() != null ? sd.getSubartist() : "";
-                        length = sd.getLength();
+                        length = sd.getLength() / 1000;
                         hasBga = sd.hasBGA();
-                        bms.player.beatoraja.song.SongInformation info = sd.getInformation();
+                        bms.player.beatoraja.song.SongInformation info = null;
+                        try {
+                            bms.player.beatoraja.Config beatorajaConfig = bms.player.beatoraja.Config.read();
+                            if (beatorajaConfig != null && beatorajaConfig.getSonginfopath() != null) {
+                                bms.player.beatoraja.song.SongInformationAccessor infoAccessor = new bms.player.beatoraja.song.SongInformationAccessor(beatorajaConfig.getSonginfopath());
+                                info = infoAccessor.getInformation(sd.getSha256());
+                            }
+                        } catch (Exception ex) {
+                            System.err.println("[EungaIR] Failed to load songinfo database: " + ex.getMessage());
+                        }
                         if (info != null) {
                             mainbpm = info.getMainbpm();
                             total = info.getTotal();
@@ -179,6 +188,16 @@ public class EungaIRConnection implements IRConnection {
                             notes_ln = info.getLn();
                             notes_scratch = info.getS();
                             notes_lnscratch = info.getLs();
+                        } else {
+                            bms.player.beatoraja.song.SongInformation fallbackInfo = sd.getInformation();
+                            if (fallbackInfo != null) {
+                                mainbpm = fallbackInfo.getMainbpm();
+                                total = fallbackInfo.getTotal();
+                                notes_normal = fallbackInfo.getN();
+                                notes_ln = fallbackInfo.getLn();
+                                notes_scratch = fallbackInfo.getS();
+                                notes_lnscratch = fallbackInfo.getLs();
+                            }
                         }
                     }
                 }
