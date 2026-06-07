@@ -18,8 +18,7 @@ public class EungaIRConnection implements IRConnection {
     public static final String HOME = "https://xn--o39a013c.tv/ir";
     public static final String VERSION = "0.0.1";
 
-    private static String apiKey = "";
-    private static String apiUrl = "https://ir.xn--o39a013c.tv"; // Default EungaIR Backend Server URL
+    private static final String apiUrl = "https://ir.xn--o39a013c.tv"; // Default EungaIR Backend Server URL
 
     private IRAccount account;
 
@@ -80,55 +79,13 @@ public class EungaIRConnection implements IRConnection {
         return matches;
     }
 
-    private static void loadConfig() {
-        File dir = getJarDir();
-        File configFile = new File(dir, "eungair-config.txt");
-        if (!configFile.exists()) {
-            try (FileOutputStream fos = new FileOutputStream(configFile)) {
-                String template = "# EungaIR Configuration File\n"
-                        + "# Generate your API Key on eungatv.com/ir and paste it here.\n"
-                        + "api_key=\n"
-                        + "api_url=https://ir.xn--o39a013c.tv\n";
-                fos.write(template.getBytes(StandardCharsets.UTF_8));
-                System.out.println("[EungaIR] Created default config file: " + configFile.getAbsolutePath());
-            } catch (Exception e) {
-                System.err.println("[EungaIR] Failed to create config file: " + e.getMessage());
-            }
-        } else {
-            try (FileInputStream fis = new FileInputStream(configFile);
-                 BufferedReader reader = new BufferedReader(new InputStreamReader(fis, StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    line = line.trim();
-                    if (line.startsWith("#") || line.isEmpty()) continue;
-                    if (line.startsWith("api_key=")) {
-                        apiKey = line.substring(8).trim();
-                    } else if (line.startsWith("api_url=")) {
-                        apiUrl = line.substring(8).trim();
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("[EungaIR] Failed to read config file: " + e.getMessage());
-            }
-        }
-    }
-
-    private String getEffectiveApiKey() {
-        loadConfig();
-        // If password is set in the game account config, override the text file api_key
-        if (account != null && account.password != null && !account.password.trim().isEmpty()) {
-            return account.password.trim();
-        }
-        return apiKey;
-    }
-
     @Override
     public IRResponse<IRPlayerData> login(IRAccount account) {
         this.account = account;
-        String keyToUse = getEffectiveApiKey();
+        String keyToUse = account != null ? account.password : null;
 
-        if (keyToUse == null || keyToUse.isEmpty()) {
-            return createResponse(false, "EungaIR API Key is missing. Set it in eungair-config.txt or enter it as the password in the EungaIR settings.", null);
+        if (keyToUse == null || keyToUse.trim().isEmpty()) {
+            return createResponse(false, "EungaIR API Key is missing. Please enter your API Key in the Password field in the launcher IR settings.", null);
         }
 
         try {
@@ -183,10 +140,10 @@ public class EungaIRConnection implements IRConnection {
 
     @Override
     public IRResponse<Object> sendPlayData(IRChartData chart, IRScoreData score) {
-        String keyToUse = getEffectiveApiKey();
+        String keyToUse = account != null ? account.password : null;
 
-        if (keyToUse == null || keyToUse.isEmpty()) {
-            return createResponse(false, "API Key is missing.", null);
+        if (keyToUse == null || keyToUse.trim().isEmpty()) {
+            return createResponse(false, "EungaIR API Key is missing. Please configure it in the launcher.", null);
         }
 
         try {
@@ -374,7 +331,6 @@ public class EungaIRConnection implements IRConnection {
 
     @Override
     public IRResponse<IRScoreData[]> getPlayData(IRPlayerData irpd, IRChartData chart) {
-        loadConfig();
         if (chart == null) {
             // Rivals or multiple play data requests are not fully supported yet in EungaIR
             return createResponse(true, "Rival score fetch not implemented yet.", new IRScoreData[0]);
