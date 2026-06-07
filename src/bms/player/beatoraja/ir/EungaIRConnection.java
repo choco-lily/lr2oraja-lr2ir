@@ -36,6 +36,50 @@ public class EungaIRConnection implements IRConnection {
         return new File(".");
     }
 
+    private java.util.List<String> scanDifficultyTables(String targetMd5, String targetSha256) {
+        java.util.List<String> matches = new java.util.ArrayList<>();
+        try {
+            File tableDir = new File("table");
+            if (!tableDir.exists() || !tableDir.isDirectory()) {
+                tableDir = new File(getJarDir().getParentFile(), "table");
+            }
+            if (tableDir.exists() && tableDir.isDirectory()) {
+                File[] files = tableDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        if (f.getName().endsWith(".bmt")) {
+                            try {
+                                bms.player.beatoraja.TableData td = bms.player.beatoraja.TableData.read(f.toPath());
+                                if (td != null && td.getFolder() != null) {
+                                    String tableName = td.getName();
+                                    for (bms.player.beatoraja.TableData.TableFolder folder : td.getFolder()) {
+                                        if (folder != null && folder.getSong() != null) {
+                                            String folderName = folder.getName();
+                                            for (bms.player.beatoraja.song.SongData sd : folder.getSong()) {
+                                                if (sd != null) {
+                                                    boolean md5Match = sd.getMd5() != null && sd.getMd5().equalsIgnoreCase(targetMd5);
+                                                    boolean shaMatch = sd.getSha256() != null && sd.getSha256().equalsIgnoreCase(targetSha256);
+                                                    if (md5Match || shaMatch) {
+                                                        matches.add(tableName + ":" + folderName);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                // Ignore table read errors to avoid disrupting plays
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[EungaIR] Error scanning difficulty tables: " + e.getMessage());
+        }
+        return matches;
+    }
+
     private static void loadConfig() {
         File dir = getJarDir();
         File configFile = new File(dir, "eungair-config.txt");
@@ -146,6 +190,63 @@ public class EungaIRConnection implements IRConnection {
         }
 
         try {
+            // Query detailed song metadata from local beatoraja database
+            String subtitle = "";
+            String subartist = "";
+            String maker = "";
+            String readme = "";
+            int length = 0;
+            double mainbpm = 0.0;
+            double total = 0.0;
+            int notes_normal = 0;
+            int notes_ln = 0;
+            int notes_scratch = 0;
+            int notes_lnscratch = 0;
+            boolean hasBga = false;
+
+            try {
+                bms.player.beatoraja.song.SongDatabaseAccessor accessor = bms.player.beatoraja.MainLoader.getScoreDatabaseAccessor();
+                if (accessor != null) {
+                    bms.player.beatoraja.song.SongData[] songDatas = accessor.getSongDatas("md5", chart.md5);
+                    if (songDatas != null && songDatas.length > 0) {
+                        bms.player.beatoraja.song.SongData sd = songDatas[0];
+                        subtitle = sd.getSubtitle() != null ? sd.getSubtitle() : "";
+                        subartist = sd.getSubartist() != null ? sd.getSubartist() : "";
+                        length = sd.getLength();
+                        hasBga = sd.hasBGA();
+                        bms.player.beatoraja.song.SongInformation info = sd.getInformation();
+                        if (info != null) {
+                            mainbpm = info.getMainbpm();
+                            total = info.getTotal();
+                            notes_normal = info.getN();
+                            notes_ln = info.getLn();
+                            notes_scratch = info.getS();
+                            notes_lnscratch = info.getLs();
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[EungaIR] Failed to fetch detailed song metadata: " + e.getMessage());
+            }
+
+            // Extract pattern maker and readme from custom values map if present
+            if (chart.values != null) {
+                if (chart.values.containsKey("MAKER")) {
+                    maker = chart.values.get("MAKER");
+                } else if (chart.values.containsKey("maker")) {
+                    maker = chart.values.get("maker");
+                }
+                
+                if (chart.values.containsKey("README")) {
+                    readme = chart.values.get("README");
+                } else if (chart.values.containsKey("readme")) {
+                    readme = chart.values.get("readme");
+                }
+            }
+
+            // Scan difficulty tables for this song
+            java.util.List<String> diffTables = scanDifficultyTables(chart.md5, chart.sha256);
+
             StringBuilder json = new StringBuilder();
             json.append("{");
 
@@ -157,7 +258,30 @@ public class EungaIRConnection implements IRConnection {
             json.append("\"artist\":\"").append(escapeJson(chart.artist)).append("\",");
             json.append("\"genre\":\"").append(escapeJson(chart.genre)).append("\",");
             json.append("\"level\":").append(chart.level).append(",");
-            json.append("\"notes\":").append(chart.notes);
+            json.append("\"notes\":").append(chart.notes).append(",");
+            json.append("\"subtitle\":\"").append(escapeJson(subtitle)).append("\",");
+            json.append("\"subartist\":\"").append(escapeJson(subartist)).append("\",");
+            json.append("\"maker\":\"").append(escapeJson(maker)).append("\",");
+            json.append("\"readme\":\"").append(escapeJson(readme)).append("\",");
+            json.append("\"length\":").append(length).append(",");
+            json.append("\"minbpm\":").append(chart.minbpm).append(",");
+            json.append("\"maxbpm\":").append(chart.maxbpm).append(",");
+            json.append("\"mainbpm\":").append(mainbpm).append(",");
+            json.append("\"total\":").append(total).append(",");
+            json.append("\"notes_normal\":").append(notes_normal).append(",");
+            json.append("\"notes_ln\":").append(notes_ln).append(",");
+            json.append("\"notes_scratch\":").append(notes_scratch).append(",");
+            json.append("\"notes_lnscratch\":").append(notes_lnscratch).append(",");
+            json.append("\"hasBga\":").append(hasBga).append(",");
+            
+            json.append("\"difficulty_tables\":[");
+            for (int i = 0; i < diffTables.size(); i++) {
+                json.append("\"").append(escapeJson(diffTables.get(i))).append("\"");
+                if (i < diffTables.size() - 1) {
+                    json.append(",");
+                }
+            }
+            json.append("]");
             json.append("},");
 
             // 2. Score
