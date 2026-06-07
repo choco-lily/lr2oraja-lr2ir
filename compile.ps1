@@ -10,30 +10,56 @@ if (-not (Test-Path $DEPENDENCY_JAR)) {
 
 Write-Output "[Build] Using dependency jar: $DEPENDENCY_JAR"
 
-Write-Output "[Build] Cleaning previous builds..."
+# --- Build Eunga-IR.jar ---
+Write-Output "[Build] Cleaning previous Eunga-IR build..."
+if (Test-Path bin) { Remove-Item -Recurse -Force bin }
+if (Test-Path Eunga-IR.jar) { Remove-Item Eunga-IR.jar }
+
+Write-Output "[Build] Creating directories..."
+New-Item -ItemType Directory -Path bin | Out-Null
+
+Write-Output "[Build] Compiling EungaIRConnection..."
+& $JAVAC -source 17 -target 17 -cp $DEPENDENCY_JAR -d bin src\bms\player\beatoraja\ir\EungaIRConnection.java
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "[Build] Error: EungaIR Connection compilation failed."
+    exit $LASTEXITCODE
+}
+
+Write-Output "[Build] Packaging Eunga-IR.jar..."
+& $JAR cvf Eunga-IR.jar -C bin bms
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "[Build] Error: Eunga-IR Packaging failed."
+    exit $LASTEXITCODE
+}
+
+# --- Build BMS-IR.jar ---
+Write-Output "[Build] Cleaning previous BMS-IR build..."
 if (Test-Path bin) { Remove-Item -Recurse -Force bin }
 if (Test-Path BMS-IR.jar) { Remove-Item BMS-IR.jar }
 
 Write-Output "[Build] Creating directories..."
 New-Item -ItemType Directory -Path bin | Out-Null
 
-Write-Output "[Build] Compiling Java source..."
+Write-Output "[Build] Compiling LR2IRConnectionCustom..."
 & $JAVAC -source 17 -target 17 -cp $DEPENDENCY_JAR -d bin src\bms\player\beatoraja\ir\LR2IRConnectionCustom.java
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "[Build] Error: Compilation failed."
+    Write-Error "[Build] Error: LR2IR Connection compilation failed."
     exit $LASTEXITCODE
 }
 
-Write-Output "[Build] Packaging JAR file..."
+Write-Output "[Build] Packaging BMS-IR.jar..."
 & $JAR cvf BMS-IR.jar -C bin bms
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "[Build] Error: Packaging failed."
+    Write-Error "[Build] Error: BMS-IR Packaging failed."
     exit $LASTEXITCODE
 }
 
 Write-Output "[Build] Cleaning up temporary files..."
 if (Test-Path bin) { Remove-Item -Recurse -Force bin }
 
-Write-Output "[Build] Success! Generated BMS-IR.jar"
+Write-Output "[Build] Success! Generated both Eunga-IR.jar and BMS-IR.jar"
+
