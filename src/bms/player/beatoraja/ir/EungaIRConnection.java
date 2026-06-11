@@ -306,7 +306,7 @@ public class EungaIRConnection implements IRConnection {
             json.append("},");
 
             // 3. Client Metadata
-            json.append("\"client\":\"EungaIR-beatoraja\"");
+            json.append("\"client\":\"").append(escapeJson(bms.player.beatoraja.MainController.getVersion())).append("\"");
             json.append("}");
 
             URL url = new URL(apiUrl + "/api/ir/score/submit");
@@ -676,7 +676,8 @@ public class EungaIRConnection implements IRConnection {
             Class<?> controllersClass = Class.forName("com.badlogic.gdx.controllers.Controllers");
             Object controllers = controllersClass.getMethod("getControllers").invoke(null);
             if (controllers != null) {
-                int size = (int) controllers.getClass().getMethod("size").invoke(controllers);
+                java.lang.reflect.Field sizeField = controllers.getClass().getField("size");
+                int size = sizeField.getInt(controllers);
                 if (size > 0) {
                     java.util.List<String> names = new java.util.ArrayList<>();
                     for (int i = 0; i < size; i++) {
