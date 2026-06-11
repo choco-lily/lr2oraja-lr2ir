@@ -265,6 +265,15 @@ def parse_and_patch_class(data, client_hash, plugin_hash):
                         new_code = bytearray([0x13, (idx_lr2oraja_ed_str >> 8) & 0xff, idx_lr2oraja_ed_str & 0xff, 0xb0]) + bytearray([0x00] * (code_len - 4))
                     attr_data[14 : 14 + code_len] = new_code
                     
+                    # Remove StackMapTable sub-attribute to prevent VerifyError (StackMapTable mismatch in linear code)
+                    exc_len_idx = 14 + code_len
+                    exc_table_len = struct.unpack_from('>H', attr_data, exc_len_idx)[0]
+                    attrs_count_idx = exc_len_idx + 2 + exc_table_len * 8
+                    attr_data[attrs_count_idx : attrs_count_idx + 2] = b'\x00\x00' # attributes_count = 0
+                    attr_data = attr_data[: attrs_count_idx + 2] # Truncate everything after
+                    new_attr_len = len(attr_data) - 6
+                    attr_data[2:6] = struct.pack('>I', new_attr_len) # Update attribute_length
+                    
                 elif m_name == 'clientVariant' and m_desc == '()Ljava/lang/String;':
                     print("  Patching clientVariant() to return 'ed'")
                     if idx_ed_str <= 255:
@@ -272,6 +281,15 @@ def parse_and_patch_class(data, client_hash, plugin_hash):
                     else:
                         new_code = bytearray([0x13, (idx_ed_str >> 8) & 0xff, idx_ed_str & 0xff, 0xb0]) + bytearray([0x00] * (code_len - 4))
                     attr_data[14 : 14 + code_len] = new_code
+                    
+                    # Remove StackMapTable sub-attribute to prevent VerifyError
+                    exc_len_idx = 14 + code_len
+                    exc_table_len = struct.unpack_from('>H', attr_data, exc_len_idx)[0]
+                    attrs_count_idx = exc_len_idx + 2 + exc_table_len * 8
+                    attr_data[attrs_count_idx : attrs_count_idx + 2] = b'\x00\x00' # attributes_count = 0
+                    attr_data = attr_data[: attrs_count_idx + 2] # Truncate everything after
+                    new_attr_len = len(attr_data) - 6
+                    attr_data[2:6] = struct.pack('>I', new_attr_len) # Update attribute_length
                     
                 elif m_name == 'clientHash' and m_desc == '()Ljava/lang/String;':
                     print(f"  Patching clientHash() -> MD5: {client_hash}")
