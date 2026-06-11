@@ -81,6 +81,7 @@ public class EungaIRConnection implements IRConnection {
 
     @Override
     public IRResponse<IRPlayerData> login(IRAccount account) {
+        makeIrSendStatusSafe();
         this.account = account;
         String keyToUse = account != null ? account.password : null;
 
@@ -140,6 +141,7 @@ public class EungaIRConnection implements IRConnection {
 
     @Override
     public IRResponse<Object> sendPlayData(IRChartData chart, IRScoreData score) {
+        makeIrSendStatusSafe();
         String keyToUse = account != null ? account.password : null;
 
         if (keyToUse == null || keyToUse.trim().isEmpty()) {
@@ -273,6 +275,7 @@ public class EungaIRConnection implements IRConnection {
             json.append("\"assist\":").append(score.assist).append(",");
             json.append("\"skin\":\"").append(escapeJson(score.skin)).append("\",");
             json.append("\"deviceType\":\"").append(escapeJson(score.deviceType != null ? score.deviceType.name() : "KEYBOARD")).append("\",");
+            json.append("\"deviceModel\":\"").append(escapeJson(getDeviceModelName())).append("\",");
 
             // Split Judgements
             json.append("\"epg\":").append(score.epg).append(",");
@@ -612,5 +615,87 @@ public class EungaIRConnection implements IRConnection {
         } catch (Exception e) {
             return def;
         }
+    }
+
+    public static class SafeCopyOnWriteArrayList<E> extends java.util.concurrent.CopyOnWriteArrayList<E> {
+        public SafeCopyOnWriteArrayList(java.util.Collection<? extends E> c) {
+            super(c);
+        }
+        @Override
+        public java.util.List<E> subList(int fromIndex, int toIndex) {
+            java.util.List<E> copy = new java.util.ArrayList<>();
+            Object[] elements = toArray();
+            for (int i = fromIndex; i < toIndex; i++) {
+                copy.add((E) elements[i]);
+            }
+            return copy;
+        }
+    }
+
+    private static Object getMainController() {
+        try {
+            Class<?> gdxClass = Class.forName("com.badlogic.gdx.Gdx");
+            Object app = gdxClass.getField("app").get(null);
+            if (app != null) {
+                Object listener = app.getClass().getMethod("getApplicationListener").invoke(app);
+                if (listener != null) {
+                    for (java.lang.reflect.Field field : listener.getClass().getDeclaredFields()) {
+                        if (field.getType().getName().equals("bms.player.beatoraja.MainController")) {
+                            field.setAccessible(true);
+                            return field.get(listener);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[EungaIR] Error getting MainController: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private synchronized void makeIrSendStatusSafe() {
+        try {
+            Object main = getMainController();
+            if (main != null) {
+                java.lang.reflect.Field field = main.getClass().getField("irSendStatus");
+                java.util.List<?> currentList = (java.util.List<?>) field.get(main);
+                if (currentList != null && !(currentList instanceof SafeCopyOnWriteArrayList)) {
+                    SafeCopyOnWriteArrayList<Object> safeList = new SafeCopyOnWriteArrayList<>(currentList);
+                    field.set(main, safeList);
+                    System.out.println("[EungaIR] Successfully wrapped MainController.irSendStatus with SafeCopyOnWriteArrayList!");
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[EungaIR] Failed to wrap irSendStatus: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private static String getDeviceModelName() {
+        try {
+            Class<?> controllersClass = Class.forName("com.badlogic.gdx.controllers.Controllers");
+            Object controllers = controllersClass.getMethod("getControllers").invoke(null);
+            if (controllers != null) {
+                int size = (int) controllers.getClass().getMethod("size").invoke(controllers);
+                if (size > 0) {
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    for (int i = 0; i < size; i++) {
+                        Object controller = controllers.getClass().getMethod("get", int.class).invoke(controllers, i);
+                        if (controller != null) {
+                            String name = (String) controller.getClass().getMethod("getName").invoke(controller);
+                            if (name != null && !name.trim().isEmpty()) {
+                                names.add(name.trim());
+                            }
+                        }
+                    }
+                    if (!names.isEmpty()) {
+                        return String.join(", ", names);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            // Fallback or ignore
+        }
+        return "";
     }
 }
