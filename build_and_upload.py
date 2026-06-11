@@ -89,13 +89,13 @@ def build_plugin():
     # Cleanup old files
     if os.path.exists("bin"):
         shutil.rmtree("bin")
-    if os.path.exists("BMS-IR.jar"):
-        os.remove("BMS-IR.jar")
+    if os.path.exists("Eunga-IR.jar"):
+        os.remove("Eunga-IR.jar")
         
     os.makedirs("bin", exist_ok=True)
     
     # Compile
-    source_file = os.path.join("src", "bms", "player", "beatoraja", "ir", "LR2IRConnectionCustom.java")
+    source_file = os.path.join("src", "bms", "player", "beatoraja", "ir", "EungaIRConnection.java")
     compile_cmd = [
         javac_path,
         "-source", "17",
@@ -114,7 +114,7 @@ def build_plugin():
     # Package
     package_cmd = [
         jar_path,
-        "cvf", "BMS-IR.jar",
+        "cvf", "Eunga-IR.jar",
         "-C", "bin",
         "bms"
     ]
@@ -128,7 +128,7 @@ def build_plugin():
     if os.path.exists("bin"):
         shutil.rmtree("bin")
         
-    print("[Build] Success! Generated BMS-IR.jar")
+    print("[Build] Success! Generated Eunga-IR.jar")
 
 def upload_release(owner, repo, tag, file_path):
     token = get_github_token()
@@ -171,26 +171,18 @@ def upload_release(owner, repo, tag, file_path):
     print(f"[Release] Creating a new release for tag {tag}...")
     create_url = f"https://api.github.com/repos/{owner}/{repo}/releases"
     release_body = (
-        "# BMS-IR 커스텀 연동 플러그인 v1.2.9 릴리즈\n\n"
-        "공식 BMS-IR 플러그인 `bms_ir_ed_0.0.21.jar` 업데이트에 대응하여 신규 기능 지원 및 사용자 지정 위장 모드 설정 기능이 추가되었습니다.\n\n"
+        "# 응가IR 연동 플러그인 v1.2.9 릴리즈\n\n"
+        "순정 `lr2oraja endless dream` 구동기에서 스코어 전송 시 발생하는 동시 수정 오류를 해결하고 플레이어 기기 정보 식별 기능을 도입한 Eunga-IR(응가IR) 전용 연동 플러그인 릴리즈입니다.\n\n"
         "### 🚀 업데이트 내역 (v1.2.9)\n\n"
-        "1. **식별 위장 모드 사용자 정의 설정 지원 (`bmsir-spoof.txt`)**\n"
-        "   - 게임 실행 시 플러그인 폴더(`ir/`) 내에 `bmsir-spoof.txt` 설정 파일이 자동으로 생성됩니다.\n"
-        "   - 플레이어는 이 설정 파일을 텍스트 에디터로 열어 전송 시 사용할 클라이언트 식별 방식을 직접 구성할 수 있습니다:\n"
-        "     - `lr2`: 순정 LR2 클라이언트로 위장하여 전송합니다. (인터넷 랭킹 연동이 가장 안정적이며, 상세 해시 및 beatoraja 메타데이터를 제외하여 구동기 제약을 우회합니다. User-Agent: `LR2`)\n"
-        "     - `ed`: Endless Dream 버전의 lr2oraja 클라이언트로 위장합니다. (User-Agent: `BmsIRUpload/100130`, 클래스 검증 해시 및 variant 메타데이터 전송)\n"
-        "     - `vanilla`: 순정 lr2oraja 클라이언트로 위장합니다. (User-Agent: `BmsIRUpload/100130`, 클래스 검증 해시 및 variant 메타데이터 전송)\n\n"
-        "2. **신규 게이지 및 클리어 통계 파라미터 전송 (0.0.21 스펙 준수)**\n"
-        "   - 플레이 데이터 전송 시, 공식 v0.0.21 버전에 도입된 아래의 세부 정보 파라미터를 추가 전송합니다:\n"
-        "     - `clear_type`: beatoraja 클리어 타입의 내부 ID (1~10)\n"
-        "     - `gauge_type`: 인게임 게이지 종류의 내부 ID (0~5)\n"
-        "     - `gauge_option`: 매핑된 LR2 규격 게이지 상태 번호\n\n"
-        "---\n\n"
-        "### 🚀 이전 업데이트 내역 (v1.2.8)\n\n"
-        "- **순정 구동기 RANDOM 옵션 완벽 연동**: 순정 구동기의 16777215 범위 랜덤 시드를 LR2 규격(0~32766) 난수 배치와 역분석을 통해 자동 매핑하여, 순정 구동기에서도 RANDOM 점수가 완벽히 등록됩니다.\n"
-        "- **인게임 라이벌(Rival) 실시간 비교 연동**: 홈페이지 마이페이지 파싱 기능을 통해 인게임 선곡 및 대기실 화면에 라이벌 스펙과 점수가 정상 동기화됩니다.\n"
-        "- **MAX Clear (Clear Type 10) 완벽 보존**: All PGREAT 퍼펙트 스코어 달성 시 퍼펙트 대신 beatoraja만의 MAX Clear 규격으로 랭킹에 매핑 전송됩니다.\n"
-        "- **이중 전송 방지 및 최적화**: 렉 유발 방지를 위한 로그인 시 9키 난수 캐시 백그라운드 생성(Prewarm) 및 리절트 중복 전송 문제를 해결했습니다.\n"
+        "1. **결과 화면 ConcurrentModificationException 오류 해결**\n"
+        "   - 순정 `lr2oraja endless dream` 및 `beatoraja` 구동기 환경에서 스코어 전송 시 리절트 화면에서 발생하는 쓰레드 동시 수정 예외(`ConcurrentModificationException`) 오류를 런타임 리플렉션 및 동적 랩퍼(Wrapper) 적용을 통해 완벽히 해결하였습니다.\n"
+        "   - 구동기 본체 JAR 패치 없이 플러그인 단독 장착만으로 오류가 완전히 해결됩니다.\n\n"
+        "2. **인체공학/게이밍 기기 기기 식별명 수집 및 표기 지원**\n"
+        "   - LibGDX 및 JXInput 컨트롤러 인터페이스 리플렉션 조회를 통하여, 아날로그 입력을 사용하는 자석축/래피드 트리거 기계식 키보드가 컨트롤러 장치로 매핑될 때의 정확한 디바이스 모델명(예: `Archon M1 PRO 2 MAX (ART)`)을 정상 수집합니다.\n"
+        "   - 수집된 기기명은 응가TV 인터넷 랭킹 스코어 디테일 화면에 함께 표시됩니다.\n"
+        "   - 이에 맞추어 개인정보처리방침(Privacy Policy) 페이지가 최신화되었습니다.\n\n"
+        "3. **공식 BMS-IR 플러그인 위장(스푸핑) 도구 기본 탑재**\n"
+        "   - 공식 BMS-IR 플러그인(`bms_ir_ed_0.0.27.jar` 등)을 순정 LR2로 자동 위장(스푸핑) 처리하여 전송 제약을 우회하기 위한 파이썬 CLI 스크립트(`spoof_jar.py`) 및 윈도우 배치 파일(`spoof_jar.bat`)을 포함하여 배포합니다.\n"
     )
     payload = json.dumps({
         "tag_name": tag,
@@ -249,4 +241,4 @@ def upload_release(owner, repo, tag, file_path):
 
 if __name__ == "__main__":
     build_plugin()
-    upload_release("choco-lily", "lr2oraja-lr2ir", "v1.2.9", "BMS-IR.jar")
+    upload_release("choco-lily", "lr2oraja-lr2ir", "v1.2.9", "Eunga-IR.jar")

@@ -26,4 +26,4 @@ jobs:
         automatic_release_tag: "${{ github.ref_name }}"
         prerelease: false
         files: |
-          BMS-IR.jar
+          Eunga-IR.jar

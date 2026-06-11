@@ -34,32 +34,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# --- Build BMS-IR.jar ---
-Write-Output "[Build] Cleaning previous BMS-IR build..."
-if (Test-Path bin) { Remove-Item -Recurse -Force bin }
-if (Test-Path BMS-IR.jar) { Remove-Item BMS-IR.jar }
-
-Write-Output "[Build] Creating directories..."
-New-Item -ItemType Directory -Path bin | Out-Null
-
-Write-Output "[Build] Compiling LR2IRConnectionCustom..."
-& $JAVAC -source 17 -target 17 -cp $DEPENDENCY_JAR -d bin src\bms\player\beatoraja\ir\LR2IRConnectionCustom.java
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "[Build] Error: LR2IR Connection compilation failed."
-    exit $LASTEXITCODE
-}
-
-Write-Output "[Build] Packaging BMS-IR.jar..."
-& $JAR cvf BMS-IR.jar -C bin bms
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "[Build] Error: BMS-IR Packaging failed."
-    exit $LASTEXITCODE
-}
-
 Write-Output "[Build] Cleaning up temporary files..."
 if (Test-Path bin) { Remove-Item -Recurse -Force bin }
 
-Write-Output "[Build] Success! Generated both Eunga-IR.jar and BMS-IR.jar"
+Write-Output "[Build] Success! Generated Eunga-IR.jar"
 
