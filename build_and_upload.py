@@ -241,4 +241,4 @@ def upload_release(owner, repo, tag, file_path):
 
 if __name__ == "__main__":
     build_plugin()
-    upload_release("choco-lily", "lr2oraja-lr2ir", "v1.2.9", "Eunga-IR.jar")
+    upload_release("choco-lily", "lr2oraja-lr2ir", "v1.3.0", "Eunga-IR.jar")
