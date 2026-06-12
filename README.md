@@ -33,7 +33,7 @@
 - **최적화**: 가볍고 지연 없는 동작을 보장합니다.
 
 ### 설치 방법
-1. [Eunga-IR.jar](https://github.com/choco-lily/lr2oraja-lr2ir/raw/main/Eunga-IR.jar) 파일을 다운로드합니다.
+1. [Eunga-IR.jar](https://github.com/choco-lily/eunga-ir/raw/main/Eunga-IR.jar) 파일을 다운로드합니다.
 2. `lr2oraja` 설치 경로 내의 `ir/` 폴더에 다운로드한 파일을 넣습니다. (기존에 존재하던 타 IR 플러그인 파일은 지우거나 `.bak`로 이름을 변경하세요.)
 3. 구동기 설정 화면의 **IR** 탭에서 **EungaIR**을 선택하고 본인의 Player ID와 패스워드 칸에 **응가TV API 키**를 입력합니다.
 4. 게임을 실행하여 플레이하면 기록이 전송됩니다.
@@ -68,7 +68,7 @@ This is the repository for the **Eunga-IR** internet ranking service ([eungatv.c
 - **Verification**: Logs in securely using Player ID and EungaTV API Key (placed in the password field).
 
 ### Installation
-1. Download [Eunga-IR.jar](https://github.com/choco-lily/lr2oraja-lr2ir/raw/main/Eunga-IR.jar).
+1. Download [Eunga-IR.jar](https://github.com/choco-lily/eunga-ir/raw/main/Eunga-IR.jar).
 2. Move the downloaded jar into the `ir/` folder of your `lr2oraja` / `beatoraja` directory.
 3. Open the launcher, head to the **IR** tab, select **EungaIR**, and fill in your Player ID and **EungaTV API Key** (in the password box).
 4. Run the game; scores will sync automatically.
@@ -102,7 +102,7 @@ This is the repository for the **Eunga-IR** internet ranking service ([eungatv.c
 - **プレイヤー認証**: 登録されたプレイヤー ID と **ウンガTV APIキー**（パスワード入力欄に入力）を用いて認証を行います。
 
 ### 導入方法
-1. [Eunga-IR.jar](https://github.com/choco-lily/lr2oraja-lr2ir/raw/main/Eunga-IR.jar) をダウンロードします。
+1. [Eunga-IR.jar](https://github.com/choco-lily/eunga-ir/raw/main/Eunga-IR.jar) をダウンロードします.
 2. `lr2oraja` / `beatoraja` のインストールフォルダ内にある `ir/` フォルダにファイルを配置します。
 3. ウンガ設定画面の **IR** タブから **EungaIR** を選択し、ご自身のプレイヤー ID と **ウンガTV APIキー** を入力します。
 4. ゲームを起動してプレイすると、インターネットランキングに自動登録されます。
