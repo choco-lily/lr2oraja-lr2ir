@@ -262,13 +262,18 @@ public class EungaIRConnection implements IRConnection {
             json.append("]");
             json.append("},");
 
+            int[] actualGauges = getActualGauges();
+            int gaugeVal = actualGauges[0] != -1 ? actualGauges[0] : score.gauge;
+
             // 2. Score
             json.append("\"score\":{");
             json.append("\"clear\":\"").append(escapeJson(score.clear != null ? score.clear.name() : "Failed")).append("\",");
             json.append("\"exscore\":").append(score.getExscore()).append(",");
             json.append("\"maxcombo\":").append(score.maxcombo).append(",");
             json.append("\"minbp\":").append(score.minbp).append(",");
-            json.append("\"gauge\":").append(score.gauge).append(",");
+            json.append("\"gauge\":").append(gaugeVal).append(",");
+            json.append("\"gauge_opt\":").append(actualGauges[0]).append(",");
+            json.append("\"gauge_result\":").append(actualGauges[1]).append(",");
             json.append("\"random\":").append(score.option).append(",");
             json.append("\"option\":").append(score.option).append(",");
             json.append("\"seed\":").append(score.seed).append(",");
@@ -591,6 +596,7 @@ public class EungaIRConnection implements IRConnection {
             scoreData.setPlaycount(playcount);
             scoreData.setClearcount(clearcount);
             scoreData.setDate(date * 1000L);
+            scoreData.setGauge(gauge);
 
             return new IRScoreData(scoreData);
         } catch (Exception e) {
@@ -669,6 +675,49 @@ public class EungaIRConnection implements IRConnection {
             System.err.println("[EungaIR] Failed to wrap irSendStatus: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private static int[] getActualGauges() {
+        int[] res = new int[]{-1, -1}; // {typeorg, type}
+        try {
+            Object main = getMainController();
+            if (main != null) {
+                Object state = main.getClass().getMethod("getCurrentState").invoke(main);
+                if (state != null && state.getClass().getName().contains("Result")) {
+                    java.lang.reflect.Field resourceField = null;
+                    Class<?> clazz = state.getClass();
+                    while (clazz != null) {
+                        try {
+                            resourceField = clazz.getDeclaredField("resource");
+                            break;
+                        } catch (NoSuchFieldException e) {
+                            clazz = clazz.getSuperclass();
+                        }
+                    }
+                    if (resourceField != null) {
+                        resourceField.setAccessible(true);
+                        Object resource = resourceField.get(state);
+                        if (resource != null) {
+                            Object grooveGauge = resource.getClass().getMethod("getGrooveGauge").invoke(resource);
+                            if (grooveGauge != null) {
+                                int type = (Integer) grooveGauge.getClass().getMethod("getType").invoke(grooveGauge);
+                                int typeorg = -1;
+                                try {
+                                    java.lang.reflect.Field typeorgField = grooveGauge.getClass().getDeclaredField("typeorg");
+                                    typeorgField.setAccessible(true);
+                                    typeorg = typeorgField.getInt(grooveGauge);
+                                } catch (Exception ex) {}
+                                res[0] = typeorg;
+                                res[1] = type;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[EungaIR] Error getting actual gauges: " + e.getMessage());
+        }
+        return res;
     }
 
     private static String getDeviceModelName() {
